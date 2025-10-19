@@ -172,7 +172,8 @@ class _VoiceTranslationScreenState extends State<VoiceTranslationScreen>  with S
     if (available) {
       setState(() => _isListening = true);
       _speech.listen(
-        localeId: _fromLang,
+        // use language code for localeId (e.g. 'en' or 'en_US') instead of the display name
+        localeId: widget.langCodes[_fromLang]?.replaceAll('-', '_'),
         onResult: (result) async {
           setState(() => _inputText = result.recognizedWords);
           final translation = await translator.translate(
@@ -197,11 +198,31 @@ class _VoiceTranslationScreenState extends State<VoiceTranslationScreen>  with S
       _fromLang = _toLang;
       _toLang = temp;
     });
+      // Re-translate the current input using the new language pair
+      _translateInput();
   }
 
   void _speakTranslation() async {
-    await tts.setLanguage(_toLang);
+    // ensure we pass the language code (e.g. 'en' or 'en-US') to TTS
+    final langCode = widget.langCodes[_toLang]?.split('-')[0];
+    if (langCode != null) {
+      await tts.setLanguage(langCode);
+    }
     await tts.speak(_translatedText);
+  }
+
+  Future<void> _translateInput() async {
+    if (_inputText.trim().isEmpty) return;
+    try {
+      final translation = await translator.translate(
+        _inputText,
+        from: widget.langCodes[_fromLang]!.split('-')[0],
+        to: widget.langCodes[_toLang]!.split('-')[0],
+      );
+      setState(() => _translatedText = translation.text);
+    } catch (e) {
+      // ignore translation errors silently for now or show a snackbar if desired
+    }
   }
 
   void _copyTranslation() {
@@ -302,6 +323,8 @@ class _VoiceTranslationScreenState extends State<VoiceTranslationScreen>  with S
     );
     if (selected != null) {
       setState(() => _fromLang = selected);
+      // re-translate current input with new language
+      _translateInput();
     }
   },
   child: Container(
@@ -358,6 +381,8 @@ class _VoiceTranslationScreenState extends State<VoiceTranslationScreen>  with S
     );
     if (selected != null) {
       setState(() => _toLang = selected);
+      // re-translate current input with new language
+      _translateInput();
     }
   },
   child: Container(
@@ -438,13 +463,17 @@ class _VoiceTranslationScreenState extends State<VoiceTranslationScreen>  with S
                           ),
                           child: Row(
                             children: [
-                               Text(
-                                    langFlags[widget.langCodes[_toLang]!.split('-')[0]] ?? '🌐',
-                                    style: TextStyle(fontSize: 24),
-                                  ),
                               Text(
-                                " "+_translatedText,
-                                style: TextStyle(fontSize: 16),
+                                langFlags[widget.langCodes[_toLang]!.split('-')[0]] ?? '🌐',
+                                style: TextStyle(fontSize: 24),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  " "+_translatedText,
+                                  style: TextStyle(fontSize: 16),
+                                  softWrap: true,
+                                ),
                               ),
                             ],
                           ),

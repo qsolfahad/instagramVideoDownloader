@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -11,6 +12,8 @@ class MoreScreen extends StatefulWidget {
 
 class _MoreScreenState extends State<MoreScreen> {
   String appVersion = "1.0.0";
+  // Play Store URL for sharing and rating
+  static const String _playStoreUrl = 'https://play.google.com/store/apps/details?id=com.nexifylab.translatify';
 
   @override
   void initState() {
@@ -51,14 +54,6 @@ class _MoreScreenState extends State<MoreScreen> {
               ),
             ),
             SizedBox(height: 16),
-            Text(
-              "Share Translatify",
-              style: GoogleFonts.syne(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
@@ -91,9 +86,15 @@ class _MoreScreenState extends State<MoreScreen> {
                   SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(context);
-                        _showShareSuccess(context);
+                        try {
+                          await Share.share(_playStoreUrl, subject: 'Check out Translatify');
+                          _showShareSuccess(context);
+                        } catch (e) {
+                          await Clipboard.setData(ClipboardData(text: _playStoreUrl));
+                          _showShareSuccess(context);
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.pink,
@@ -133,13 +134,24 @@ class _MoreScreenState extends State<MoreScreen> {
   }
 
   void _rateApp(BuildContext context) {
-    // Navigate to rate screen
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => RateAppScreen(),
-      ),
-    );
+    // Try to open Play Store page for rating. If it fails, fall back to the in-app rate screen.
+    _openPlayStoreForRating(context);
+  }
+
+  Future<void> _openPlayStoreForRating(BuildContext context) async {
+    final Uri uri = Uri.parse(_playStoreUrl);
+    try {
+      // prefer external application (Play Store / browser)
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      // fallback to in-app Rate screen if launching store fails
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RateAppScreen(),
+        ),
+      );
+    }
   }
 
   void _showFeedback(BuildContext context) {

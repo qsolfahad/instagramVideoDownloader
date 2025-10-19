@@ -1,4 +1,4 @@
-package com.example.instadownloader
+package com.nexifylab.translatify
 
 import io.flutter.embedding.android.FlutterActivity
 
